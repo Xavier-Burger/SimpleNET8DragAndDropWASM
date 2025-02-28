@@ -14,6 +14,8 @@
 
     public async Task UpdateJobAsync(JobStatuses newStatus)
     {
+        if (Payload is not { }) return;
+        
         JobModel? task = Jobs.SingleOrDefault(x => x.Id == Payload.Id);
 
         if (task != null)

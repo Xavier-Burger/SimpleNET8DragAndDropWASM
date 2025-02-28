@@ -6,9 +6,9 @@
 
 @code {
     [CascadingParameter] JobsContainer Container { get; set; } = null!;
-    [Parameter] public JobModel? JobModel { get; set; } = null!;
+    [Parameter] public required JobModel JobModel { get; set; }
 
-    private void HandleDragStart(JobModel? selectedJob)
+    private void HandleDragStart(JobModel selectedJob)
     {
         Container.Payload = selectedJob;
     }
