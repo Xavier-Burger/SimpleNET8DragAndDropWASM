@@ -9,7 +9,7 @@
         @ondragenter="HandleDragEnter"
         @ondragleave="HandleDragLeave">
 
-        @foreach (var job in _jobs)
+        @foreach (var job in _jobs.OrderBy(j => j.Order))
         {
             <Job JobModel="job" />
         }
@@ -34,9 +34,18 @@
 
     private void HandleDragEnter()
     {
-        if (Container.Payload is not {} || ListStatus == Container.Payload.Status) return;
-
-        _dropClass = !AllowedStatuses.Contains(Container.Payload.Status) ? "no-drop" : "can-drop";
+        if (Container.Payload is not {}) return;
+        
+        // Check if the job is from a different list
+        if (Container.Payload.Status != ListStatus)
+        {
+            _dropClass = !AllowedStatuses.Contains(Container.Payload.Status) ? "no-drop" : "can-drop";
+        }
+        else
+        {
+            // This is for reordering within the same list
+            _dropClass = "reordering";
+        }
     }
 
     private void HandleDragLeave()
@@ -48,8 +57,42 @@
     {
         _dropClass = "";
 
-        if (Container.Payload is not {} || !AllowedStatuses.Contains(Container.Payload.Status)) return;
+        if (Container.Payload is null) return;
 
-        await Container.UpdateJobAsync(ListStatus);
+        // If the drag is between different lists
+        if (Container.Payload.Status != ListStatus)
+        {
+            if (!AllowedStatuses.Contains(Container.Payload.Status)) return;
+            await Container.UpdateJobAsync(ListStatus);
+            return;
+        }
+        
+        // If dragged onto the empty part of the list or if no target is set
+        // add to the end of the list
+        if (Container.TargetJob is null || Container.TargetJob.Status != ListStatus)
+        {
+            JobModel? sourceJob = Container.Jobs.SingleOrDefault(x => x.Id == Container.Payload.Id);
+            if (sourceJob != null)
+            {
+                // Find the maximum order in this list
+                int maxOrder = _jobs.Any() ? _jobs.Max(j => j.Order) : 0;
+                
+                // Only update if we're not already at the end
+                if (sourceJob.Order != maxOrder)
+                {
+                    // First remove the job from its current position
+                    foreach (var job in Container.Jobs.Where(x => x.Status == ListStatus && 
+                                                              x.Order > sourceJob.Order))
+                    {
+                        job.Order--;
+                    }
+                    
+                    // Place at the end
+                    sourceJob.Order = maxOrder;
+                    sourceJob.LastUpdated = DateTime.Now;
+                    await Container.OnStatusUpdated.InvokeAsync(sourceJob);
+                }
+            }
+        }
     }
 }

@@ -10,7 +10,8 @@
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public EventCallback<JobModel?> OnStatusUpdated { get; set; }
 
-    public JobModel? Payload { get; set; } 
+    public JobModel? Payload { get; set; }
+    public JobModel? TargetJob { get; set; }
 
     public async Task UpdateJobAsync(JobStatuses newStatus)
     {
@@ -22,7 +23,61 @@
         {
             task.Status = newStatus;
             task.LastUpdated = DateTime.Now;
+            
+            // Assign to the last position in the new status list by default
+            int maxOrder = Jobs.Where(x => x.Status == newStatus).Max(x => x.Order);
+            task.Order = maxOrder + 1;
+            
             await OnStatusUpdated.InvokeAsync(Payload);
+        }
+    }
+    
+    public async Task ReorderJobInSameListAsync(JobModel targetJob)
+    {
+        if (Payload is not { } || targetJob.Id == Payload.Id) return;
+        
+        // Only reorder if in the same list
+        if (Payload.Status != targetJob.Status) return;
+        
+        JobModel? sourceJob = Jobs.SingleOrDefault(x => x.Id == Payload.Id);
+        
+        if (sourceJob != null)
+        {
+            int sourceOrder = sourceJob.Order;
+            int targetOrder = targetJob.Order;
+            
+            // Determine if we're moving up or down in the list
+            if (sourceOrder < targetOrder)
+            {
+                // Moving down - shift all jobs between source and target up
+                foreach (var job in Jobs.Where(x => x.Status == sourceJob.Status && 
+                                                  x.Order > sourceOrder && 
+                                                  x.Order <= targetOrder))
+                {
+                    job.Order--;
+                    job.LastUpdated = DateTime.Now;
+                }
+                
+                // Place source at target position
+                sourceJob.Order = targetOrder;
+            }
+            else
+            {
+                // Moving up - shift all jobs between target and source down
+                foreach (var job in Jobs.Where(x => x.Status == sourceJob.Status && 
+                                                  x.Order >= targetOrder && 
+                                                  x.Order < sourceOrder))
+                {
+                    job.Order++;
+                    job.LastUpdated = DateTime.Now;
+                }
+                
+                // Place source at target position
+                sourceJob.Order = targetOrder;
+            }
+            
+            sourceJob.LastUpdated = DateTime.Now;
+            await OnStatusUpdated.InvokeAsync(sourceJob);
         }
     }
 }

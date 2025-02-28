@@ -3,7 +3,7 @@
 @using SimpleNET8DragAndDropWASM.Components
 <div style="margin: 16px;">
     <h1>Simple .NET 8 Drag and Drop</h1>
-    <p>Drag and drop jobs between lists</p>
+    <p>Drag and drop jobs between lists or reorder them within a list</p>
     <hr/>
 </div>
 <div style="margin: 16px;">
@@ -17,9 +17,9 @@
     <hr/>
     <p>Last updated job was: <strong>@_lastUpdatedJob</strong></p>
     <hr/>
-    @foreach (var task in _jobs)
+    @foreach (var task in _jobs.OrderBy(j => j.Status).ThenBy(j => j.Order))
     {
-        <p>@task.Description - <strong>@task.Status</strong></p>
+        <p>@task.Description - <strong>@task.Status</strong> (Order: @task.Order)</p>
     }
 </div>
 
@@ -29,11 +29,11 @@
 
     protected override void OnInitialized()
     {
-        _jobs.Add(new JobModel { Id = 1, Description = "Mow the lawn", Status = JobStatuses.Todo, LastUpdated = DateTime.Now });
-        _jobs.Add(new JobModel { Id = 2, Description = "Go to the gym", Status = JobStatuses.Todo, LastUpdated = DateTime.Now });
-        _jobs.Add(new JobModel { Id = 3, Description = "Call Ollie", Status = JobStatuses.Todo, LastUpdated = DateTime.Now });
-        _jobs.Add(new JobModel { Id = 4, Description = "Fix bike tyre", Status = JobStatuses.Todo, LastUpdated = DateTime.Now });
-        _jobs.Add(new JobModel { Id = 5, Description = "Finish blog post", Status = JobStatuses.Todo, LastUpdated = DateTime.Now });
+        _jobs.Add(new JobModel { Id = 1, Description = "Mow the lawn", Status = JobStatuses.Todo, LastUpdated = DateTime.Now, Order = 1 });
+        _jobs.Add(new JobModel { Id = 2, Description = "Go to the gym", Status = JobStatuses.Todo, LastUpdated = DateTime.Now, Order = 2 });
+        _jobs.Add(new JobModel { Id = 3, Description = "Call Ollie", Status = JobStatuses.Todo, LastUpdated = DateTime.Now, Order = 3 });
+        _jobs.Add(new JobModel { Id = 4, Description = "Fix bike tyre", Status = JobStatuses.Todo, LastUpdated = DateTime.Now, Order = 4 });
+        _jobs.Add(new JobModel { Id = 5, Description = "Finish blog post", Status = JobStatuses.Todo, LastUpdated = DateTime.Now, Order = 5 });
     }
 
     void HandleStatusUpdated(JobModel? updatedJob)

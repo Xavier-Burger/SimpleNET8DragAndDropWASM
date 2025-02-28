@@ -1,5 +1,11 @@
 ﻿@using SimpleNET8DragAndDropWASM.Models
-<li class="draggable" draggable="true" title="@JobModel.Description" @ondragstart="@(() => HandleDragStart(JobModel))">
+<li class="draggable" 
+    draggable="true" 
+    title="@JobModel.Description" 
+    @ondragstart="@(() => HandleDragStart(JobModel))"
+    @ondragover="HandleDragOver"
+    @ondragleave="HandleDragLeave"
+    @ondrop="HandleDrop">
     <p class="description">@JobModel.Description</p>
     <p class="last-updated"><small>Last Updated</small> @JobModel.LastUpdated.ToString("HH:mm.ss tt")</p>
 </li>
@@ -8,8 +14,44 @@
     [CascadingParameter] JobsContainer Container { get; set; } = null!;
     [Parameter] public required JobModel JobModel { get; set; }
 
+    private string _dragClass = "";
+
     private void HandleDragStart(JobModel selectedJob)
     {
         Container.Payload = selectedJob;
+    }
+
+    private void HandleDragOver()
+    {
+        // Skip if the job being dragged is the same as this one
+        if (Container.Payload is null || Container.Payload.Id == JobModel.Id)
+            return;
+
+        // Set this job as the current target
+        Container.TargetJob = JobModel;
+
+        // Add visual feedback
+        _dragClass = Container.Payload.Status == JobModel.Status ? "drag-over" : "";
+    }
+
+    private void HandleDragLeave()
+    {
+        // Clear the visual indicator
+        _dragClass = "";
+        
+        // Clear the target if this was the current target
+        if (Container.TargetJob?.Id == JobModel.Id)
+            Container.TargetJob = null;
+    }
+
+    private async Task HandleDrop()
+    {
+        _dragClass = "";
+        
+        if (Container.Payload is null)
+            return;
+            
+        // Attempt to reorder the job within the same list
+        await Container.ReorderJobInSameListAsync(JobModel);
     }
 }

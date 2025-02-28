@@ -6,6 +6,7 @@
         public JobStatuses Status { get; set; }
         public string Description { get; set; } = string.Empty;
         public DateTime LastUpdated { get; set; }
+        public int Order { get; set; }
     }
 
     public enum JobStatuses
