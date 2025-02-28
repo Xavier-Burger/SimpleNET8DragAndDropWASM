@@ -1,0 +1,15 @@
+﻿@using SimpleNET8DragAndDropWASM.Models
+<li class="draggable" draggable="true" title="@JobModel.Description" @ondragstart="@(() => HandleDragStart(JobModel))">
+    <p class="description">@JobModel.Description</p>
+    <p class="last-updated"><small>Last Updated</small> @JobModel.LastUpdated.ToString("HH:mm.ss tt")</p>
+</li>
+
+@code {
+    [CascadingParameter] JobsContainer Container { get; set; } = null!;
+    [Parameter] public JobModel? JobModel { get; set; } = null!;
+
+    private void HandleDragStart(JobModel? selectedJob)
+    {
+        Container.Payload = selectedJob;
+    }
+}

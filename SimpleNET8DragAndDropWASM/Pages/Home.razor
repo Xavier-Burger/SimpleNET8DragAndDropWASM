@@ -1,0 +1,45 @@
+﻿@page "/"
+@using SimpleNET8DragAndDropWASM.Models
+@using SimpleNET8DragAndDropWASM.Components
+<div style="margin: 16px;">
+    <h1>Simple .NET 8 Drag and Drop</h1>
+    <p>Drag and drop jobs between lists</p>
+    <hr/>
+</div>
+<div style="margin: 16px;">
+    <JobsContainer Jobs="_jobs" OnStatusUpdated="HandleStatusUpdated">
+        <JobList ListStatus="JobStatuses.Todo" AllowedStatuses="@(new[] { JobStatuses.Started })"/>
+        <JobList ListStatus="JobStatuses.Started" AllowedStatuses="@(new[] { JobStatuses.Todo })"/>
+        <JobList ListStatus="JobStatuses.Completed" AllowedStatuses="@(new[] { JobStatuses.Started })"/>
+    </JobsContainer>
+</div>
+<div style="margin: 16px;">
+    <hr/>
+    <p>Last updated job was: <strong>@_lastUpdatedJob</strong></p>
+    <hr/>
+    @foreach (var task in _jobs)
+    {
+        <p>@task.Description - <strong>@task.Status</strong></p>
+    }
+</div>
+
+@code {
+    List<JobModel> _jobs = [];
+    string _lastUpdatedJob = "";
+
+    protected override void OnInitialized()
+    {
+        _jobs.Add(new JobModel { Id = 1, Description = "Mow the lawn", Status = JobStatuses.Todo, LastUpdated = DateTime.Now });
+        _jobs.Add(new JobModel { Id = 2, Description = "Go to the gym", Status = JobStatuses.Todo, LastUpdated = DateTime.Now });
+        _jobs.Add(new JobModel { Id = 3, Description = "Call Ollie", Status = JobStatuses.Todo, LastUpdated = DateTime.Now });
+        _jobs.Add(new JobModel { Id = 4, Description = "Fix bike tyre", Status = JobStatuses.Todo, LastUpdated = DateTime.Now });
+        _jobs.Add(new JobModel { Id = 5, Description = "Finish blog post", Status = JobStatuses.Todo, LastUpdated = DateTime.Now });
+    }
+
+    void HandleStatusUpdated(JobModel? updatedJob)
+    {
+        if (updatedJob is { })
+            _lastUpdatedJob = updatedJob.Description;
+    }
+
+}

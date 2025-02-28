@@ -1,0 +1,62 @@
+﻿@using SimpleNET8DragAndDropWASM.Models
+<div class="job-status">
+    <h3>@ListStatus (@_jobs.Count())</h3>
+
+    <ul class="dropzone @_dropClass"
+        ondragover="event.preventDefault();"
+        ondragstart="event.dataTransfer.setData('', event.target.id);"
+        @ondrop="HandleDrop"
+        @ondragenter="HandleDragEnter"
+        @ondragleave="HandleDragLeave">
+
+        @foreach (var job in _jobs)
+        {
+            <Job JobModel="job" />
+        }
+
+    </ul>
+</div>
+
+@code {
+
+    [CascadingParameter] JobsContainer Container { get; set; } = null!;
+    [Parameter] public JobStatuses ListStatus { get; set; } = JobStatuses.Todo;
+    [Parameter] public JobStatuses[] AllowedStatuses { get; set; } = [];
+
+    List<JobModel> _jobs = new List<JobModel>();
+    string _dropClass = "";
+
+    protected override void OnParametersSet()
+    {
+        _jobs.Clear();
+        _jobs.AddRange(Container.Jobs.Where(x => x.Status == ListStatus));
+    }
+
+    private void HandleDragEnter()
+    {
+        if (ListStatus == Container.Payload.Status) return;
+
+        if (!AllowedStatuses.Contains(Container.Payload.Status))
+        {
+            _dropClass = "no-drop";
+        }
+        else
+        {
+            _dropClass = "can-drop";
+        }
+    }
+
+    private void HandleDragLeave()
+    {
+        _dropClass = "";
+    }
+
+    private async Task HandleDrop()
+    {
+        _dropClass = "";
+
+        if (!AllowedStatuses.Contains(Container.Payload.Status)) return;
+
+        await Container.UpdateJobAsync(ListStatus);
+    }
+}
