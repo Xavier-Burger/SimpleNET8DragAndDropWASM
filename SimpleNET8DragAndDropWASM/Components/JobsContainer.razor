@@ -12,6 +12,7 @@
 
     public JobModel? Payload { get; set; }
     public JobModel? TargetJob { get; set; }
+    public JobStatuses? ActiveDragList { get; set; }
 
     public async Task UpdateJobAsync(JobStatuses newStatus)
     {
@@ -25,14 +26,15 @@
             task.LastUpdated = DateTime.Now;
             
             // Assign to the last position in the new status list by default
-            int maxOrder = Jobs.Where(x => x.Status == newStatus).Max(x => x.Order);
+            int maxOrder = Jobs.Where(x => x.Status == newStatus).Any() ? 
+                Jobs.Where(x => x.Status == newStatus).Max(x => x.Order) : 0;
             task.Order = maxOrder + 1;
             
             await OnStatusUpdated.InvokeAsync(Payload);
         }
     }
     
-    public async Task ReorderJobInSameListAsync(JobModel targetJob)
+    public async Task ReorderJobInSameListAsync(JobModel targetJob, bool insertBefore)
     {
         if (Payload is not { } || targetJob.Id == Payload.Id) return;
         
@@ -45,6 +47,19 @@
         {
             int sourceOrder = sourceJob.Order;
             int targetOrder = targetJob.Order;
+
+            // Check if we're trying to move between adjacent items where no change is needed
+            if (sourceOrder == targetOrder - 1 && insertBefore) return;
+            if (sourceOrder == targetOrder + 1 && !insertBefore) return;
+
+            // Adjust target order based on whether we're inserting before or after
+            if (!insertBefore)
+            {
+                targetOrder++;
+            }
+            
+            // Skip if target position is the same as current position
+            if (sourceOrder == targetOrder) return;
             
             // Determine if we're moving up or down in the list
             if (sourceOrder < targetOrder)
@@ -52,14 +67,11 @@
                 // Moving down - shift all jobs between source and target up
                 foreach (var job in Jobs.Where(x => x.Status == sourceJob.Status && 
                                                   x.Order > sourceOrder && 
-                                                  x.Order <= targetOrder))
+                                                  x.Order < targetOrder))
                 {
                     job.Order--;
                     job.LastUpdated = DateTime.Now;
                 }
-                
-                // Place source at target position
-                sourceJob.Order = targetOrder;
             }
             else
             {
@@ -71,11 +83,10 @@
                     job.Order++;
                     job.LastUpdated = DateTime.Now;
                 }
-                
-                // Place source at target position
-                sourceJob.Order = targetOrder;
             }
             
+            // Place source at target position
+            sourceJob.Order = targetOrder;
             sourceJob.LastUpdated = DateTime.Now;
             await OnStatusUpdated.InvokeAsync(sourceJob);
         }

@@ -1,11 +1,18 @@
 ﻿@using SimpleNET8DragAndDropWASM.Models
-<li class="draggable" 
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+
+<li class="draggable @_dragClass" 
     draggable="true" 
     title="@JobModel.Description" 
-    @ondragstart="@(() => HandleDragStart(JobModel))"
-    @ondragover="HandleDragOver"
+    @ondragstart="HandleDragStart"
+    @ondragend="HandleDragEnd"
+    @ondragover:preventDefault
+    @ondragover="@(e => HandleDragOver(e))"
+    @ondragenter="HandleDragEnter"
     @ondragleave="HandleDragLeave"
-    @ondrop="HandleDrop">
+    @ondrop="HandleDrop"
+    @ref="elementReference">
     <p class="description">@JobModel.Description</p>
     <p class="last-updated"><small>Last Updated</small> @JobModel.LastUpdated.ToString("HH:mm.ss tt")</p>
 </li>
@@ -13,45 +20,102 @@
 @code {
     [CascadingParameter] JobsContainer Container { get; set; } = null!;
     [Parameter] public required JobModel JobModel { get; set; }
+    [Parameter] public ElementReference ParentListRef { get; set; }
+    [Parameter] public EventCallback<bool> OnDragEnterJob { get; set; }
 
     private string _dragClass = "";
+    private ElementReference elementReference;
+    private bool _isDraggedOver;
 
-    private void HandleDragStart(JobModel selectedJob)
+    private void HandleDragStart()
     {
-        Container.Payload = selectedJob;
+        Container.Payload = JobModel;
+        Container.ActiveDragList = JobModel.Status;
+        StateHasChanged();
     }
 
-    private void HandleDragOver()
+    private void HandleDragEnd()
     {
-        // Skip if the job being dragged is the same as this one
+        Container.Payload = null;
+        Container.ActiveDragList = null;
+        _dragClass = "";
+        if (_isDraggedOver)
+        {
+            _isDraggedOver = false;
+            OnDragEnterJob.InvokeAsync(false);
+        }
+        StateHasChanged();
+    }
+
+    private void HandleDragEnter()
+    {
+        if (!_isDraggedOver && Container.Payload?.Status == JobModel.Status)
+        {
+            _isDraggedOver = true;
+            OnDragEnterJob.InvokeAsync(true);
+        }
+    }
+
+    private async Task HandleDragOver(DragEventArgs e)
+    {
         if (Container.Payload is null || Container.Payload.Id == JobModel.Id)
             return;
 
-        // Set this job as the current target
-        Container.TargetJob = JobModel;
+        // Only show insertion indicators if we're in the same list
+        if (Container.Payload.Status == JobModel.Status)
+        {
+            var rect = await JSRuntime.InvokeAsync<BoundingClientRect>("getBoundingClientRect", elementReference);
+            var mouseY = e.ClientY;
+            var threshold = rect.Top + (rect.Height / 2);
 
-        // Add visual feedback
-        _dragClass = Container.Payload.Status == JobModel.Status ? "drag-over" : "";
+            var newDragClass = mouseY < threshold ? "insert-before" : "insert-after";
+            if (_dragClass != newDragClass)
+            {
+                _dragClass = newDragClass;
+                StateHasChanged();
+            }
+        }
+
+        Container.TargetJob = JobModel;
     }
 
     private void HandleDragLeave()
     {
-        // Clear the visual indicator
-        _dragClass = "";
-        
-        // Clear the target if this was the current target
-        if (Container.TargetJob?.Id == JobModel.Id)
-            Container.TargetJob = null;
+        if (_dragClass != "")
+        {
+            _dragClass = "";
+            StateHasChanged();
+        }
+        if (_isDraggedOver)
+        {
+            _isDraggedOver = false;
+            OnDragEnterJob.InvokeAsync(false);
+        }
     }
 
     private async Task HandleDrop()
     {
-        _dragClass = "";
-        
         if (Container.Payload is null)
             return;
+
+        var insertBefore = _dragClass == "insert-before";
+        _dragClass = "";
             
-        // Attempt to reorder the job within the same list
-        await Container.ReorderJobInSameListAsync(JobModel);
+        if (Container.Payload.Status == JobModel.Status)
+        {
+            await Container.ReorderJobInSameListAsync(JobModel, insertBefore);
+        }
+    }
+
+    private class BoundingClientRect
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+        public double Top { get; set; }
+        public double Right { get; set; }
+        public double Bottom { get; set; }
+        public double Left { get; set; }
     }
 }

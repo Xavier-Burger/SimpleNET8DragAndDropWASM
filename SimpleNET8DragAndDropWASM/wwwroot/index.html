@@ -27,6 +27,11 @@
         <a class="dismiss">🗙</a>
     </div>
     <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        window.getBoundingClientRect = (element) => {
+            return element.getBoundingClientRect();
+        };
+    </script>
 </body>
 
 </html>

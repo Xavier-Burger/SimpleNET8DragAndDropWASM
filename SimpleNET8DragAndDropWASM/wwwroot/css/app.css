@@ -214,6 +214,7 @@ app {
     padding: 30px;
     border: 1px dashed #75868a;
     list-style: none;
+    position: relative;
 }
 
 .no-drop {
@@ -230,6 +231,7 @@ app {
 }
 
 .draggable {
+    box-sizing: border-box;
     margin-bottom: 10px;
     padding: 10px 25px;
     border: 1px solid #424d5c;
@@ -240,6 +242,7 @@ app {
     width: 250px;
     position: relative;
     transition: transform 0.2s ease-in-out;
+    min-height: 70px; /* Add fixed minimum height */
 }
 
 .draggable:active {
@@ -250,6 +253,16 @@ app {
     border: 2px dashed blue;
     transform: translateY(5px);
     background-color: #4c5b6f;
+}
+
+.draggable.insert-before {
+    border-top: 4px solid #007bff;
+    padding-top: 6px; /* Compensate for the border */
+}
+
+.draggable.insert-after {
+    border-bottom: 4px solid #007bff;
+    padding-bottom: 6px; /* Compensate for the border */
 }
 
 .dragging {

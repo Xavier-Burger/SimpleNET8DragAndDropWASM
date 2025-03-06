@@ -1,30 +1,33 @@
 ﻿@using SimpleNET8DragAndDropWASM.Models
+@inject IJSRuntime JSRuntime
+
 <div class="job-status">
     <h3>@ListStatus (@_jobs.Count())</h3>
 
-    <ul class="dropzone @_dropClass"
-        ondragover="event.preventDefault();"
-        ondragstart="event.dataTransfer.setData('', event.target.id);"
-        @ondrop="HandleDrop"
+    <ul class="dropzone @GetDropzoneClass()"
         @ondragenter="HandleDragEnter"
-        @ondragleave="HandleDragLeave">
+        @ondragleave="HandleDragLeave"
+        @ondragover:preventDefault
+        @ondragover="HandleDragOver"
+        @ondrop="HandleDrop"
+        @ref="listElement">
 
         @foreach (var job in _jobs.OrderBy(j => j.Order))
         {
-            <Job JobModel="job" />
+            <Job JobModel="job" ParentListRef="listElement" OnDragEnterJob="HandleJobDragEnter" />
         }
 
     </ul>
 </div>
 
 @code {
-
     [CascadingParameter] JobsContainer Container { get; set; } = null!;
     [Parameter] public JobStatuses ListStatus { get; set; } = JobStatuses.Todo;
     [Parameter] public JobStatuses[] AllowedStatuses { get; set; } = [];
 
     List<JobModel> _jobs = new List<JobModel>();
-    string _dropClass = "";
+    private ElementReference listElement;
+    private bool _isDraggingOverJob;
 
     protected override void OnParametersSet()
     {
@@ -32,30 +35,60 @@
         _jobs.AddRange(Container.Jobs.Where(x => x.Status == ListStatus));
     }
 
-    private void HandleDragEnter()
+    private string GetDropzoneClass()
     {
-        if (Container.Payload is not {}) return;
-        
-        // Check if the job is from a different list
+        if (Container.Payload is null || (Container.ActiveDragList != ListStatus && !_isDraggingOverJob))
+            return "";
+
         if (Container.Payload.Status != ListStatus)
         {
-            _dropClass = !AllowedStatuses.Contains(Container.Payload.Status) ? "no-drop" : "can-drop";
+            return !AllowedStatuses.Contains(Container.Payload.Status) ? "no-drop" : "can-drop";
         }
-        else
+
+        return "reordering";
+    }
+
+    private void HandleDragOver()
+    {
+        if (Container.Payload is not null && Container.ActiveDragList != ListStatus)
         {
-            // This is for reordering within the same list
-            _dropClass = "reordering";
+            Container.ActiveDragList = ListStatus;
+            StateHasChanged();
+        }
+    }
+
+    private void HandleDragEnter()
+    {
+        if (Container.Payload is not null)
+        {
+            Container.ActiveDragList = ListStatus;
+            StateHasChanged();
         }
     }
 
     private void HandleDragLeave()
     {
-        _dropClass = "";
+        if (Container.ActiveDragList == ListStatus && !_isDraggingOverJob)
+        {
+            Container.ActiveDragList = null;
+            StateHasChanged();
+        }
+    }
+
+    private void HandleJobDragEnter(bool isEntering)
+    {
+        _isDraggingOverJob = isEntering;
+        if (isEntering && Container.Payload is not null)
+        {
+            Container.ActiveDragList = ListStatus;
+            StateHasChanged();
+        }
     }
 
     private async Task HandleDrop()
     {
-        _dropClass = "";
+        Container.ActiveDragList = null;
+        StateHasChanged();
 
         if (Container.Payload is null) return;
 
